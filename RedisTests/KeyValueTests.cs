@@ -1,152 +1,129 @@
 ﻿using System;
 using System.Threading;
+using FluentAssertions;
 using NUnit.Framework;
 using StackExchange.Redis;
 
 namespace RedisTests
 {
-    [TestFixture]
-    public class KeyValueTests
+    public class KeyValueTests : RedisTestFixture
     {
-        private ConnectionMultiplexer _connectionMultiplexer;
-        private IDatabase _database;
-
-        [SetUp]
-        public void SetUp()
-        {
-            // Flush database before each test runs.
-            using (var adminConnectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
-            {
-                adminConnectionMultiplexer.GetServer("localhost:6379").FlushAllDatabases();
-            }
-
-            _connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379");
-            _database = _connectionMultiplexer.GetDatabase();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            _database = null;
-            _connectionMultiplexer.Dispose();
-        }
-
         [Test]
         public void ValuesAreNullForUnsetKeys()
         {
-            Assert.That(_database.StringGet("foo").HasValue, Is.False);
+            Database.StringGet("foo").HasValue.Should().BeFalse();
         }
 
         [Test]
         public void CanGetValueOfKeyAfterSettingIt()
         {
-            _database.StringSet("foo", "bar");
+            Database.StringSet("foo", "bar");
 
-            Assert.That(_database.StringGet("foo").Box, Is.EqualTo("bar"));
+            Database.StringGet("foo").Should().Be("bar");
         }
 
         [Test]
         public void CanConditionallySetValueIfKeyAlreadyExists()
         {
-            _database.StringSet("there", "1");
+            Database.StringSet("there", "1");
 
-            _database.StringSet("there", "2", null, When.Exists);
-            _database.StringSet("notThere", "1", null, When.Exists);
+            Database.StringSet("there", "2", null, When.Exists);
+            Database.StringSet("notThere", "1", null, When.Exists);
 
-            Assert.That(_database.StringGet("there").Box, Is.EqualTo("2"));
-            Assert.That(_database.KeyExists("notThere"), Is.False);
+            Database.StringGet("there").Should().Be("2");
+            Database.KeyExists("notThere").Should().BeFalse();
         }
 
         [Test]
         public void CanConditionallySetValueIfKeyDoesNotAlreadyExist()
         {
-            _database.StringSet("there", "1");
+            Database.StringSet("there", "1");
 
-            _database.StringSet("there", "2", null, When.NotExists);
-            _database.StringSet("notThere", "1", null, When.NotExists);
+            Database.StringSet("there", "2", null, When.NotExists);
+            Database.StringSet("notThere", "1", null, When.NotExists);
 
-            Assert.That(_database.StringGet("there").Box, Is.EqualTo("1"));
-            Assert.That(_database.StringGet("notThere").Box, Is.EqualTo("1"));
+            Database.StringGet("there").Should().Be("1");
+            Database.StringGet("notThere").Should().Be("1");
         }
 
         [Test]
         public void CanRetrieveExistingValueWhileUpdatingIt()
         {
-            _database.StringSet("key", "value1");
+            Database.StringSet("key", "value1");
 
-            var oldValue = _database.StringGetSet("key", "value2");
+            var oldValue = Database.StringGetSet("key", "value2");
 
-            Assert.That(oldValue.Box, Is.EqualTo("value1"));
-            Assert.That(_database.StringGet("key").Box, Is.EqualTo("value2"));
+            oldValue.Should().Be("value1");
+            Database.StringGet("key").Should().Be("value2");
         }
 
         [Test]
         public void CanRemoveExistingKeyValuePair()
         {
-            _database.StringSet("key", "value");
-            _database.KeyDelete("key");
+            Database.StringSet("key", "value");
+            Database.KeyDelete("key");
 
-            Assert.That(_database.KeyExists("key"), Is.False);
+            Database.KeyExists("key").Should().BeFalse();
         }
 
         [Test]
         public void CanCheckIfKeyExists()
         {
-            _database.StringSet("key", "value");
+            Database.StringSet("key", "value");
 
-            Assert.That(_database.KeyExists("key"), Is.True);
+            Database.KeyExists("key").Should().BeTrue();
         }
 
         [Test]
         public void CanRenameKey()
         {
-            _database.StringSet("key1", "value");
-            _database.KeyRename("key1", "key2");
+            Database.StringSet("key1", "value");
+            Database.KeyRename("key1", "key2");
 
-            Assert.That(_database.KeyExists("key1"), Is.False);
-            Assert.That(_database.StringGet("key2").Box, Is.EqualTo("value"));
+            Database.KeyExists("key1").Should().BeFalse();
+            Database.StringGet("key2").Should().Be("value");
         }
 
         [Test]
         public void CanSetExpirationPeriodForKey()
         {
-            _database.StringSet("key", "value", TimeSpan.FromSeconds(1));
+            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
 
-            Assert.That(_database.KeyExists("key"), Is.True);
+            Database.KeyExists("key").Should().BeTrue();
             Thread.Sleep(TimeSpan.FromSeconds(1));
-            Assert.That(_database.KeyExists("key"), Is.False);
+            Database.KeyExists("key").Should().BeFalse();
         }
 
         [Test]
         public void CanUpdateExpirationPeriodForKey()
         {
-            _database.StringSet("key", "value", TimeSpan.FromSeconds(1));
-            _database.KeyExpire("key", TimeSpan.FromSeconds(2));
+            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
+            Database.KeyExpire("key", TimeSpan.FromSeconds(2));
 
             Thread.Sleep(TimeSpan.FromSeconds(1));
-            Assert.That(_database.StringGet("key").Box, Is.EqualTo("value"));
+            Database.StringGet("key").Should().Be("value");
             Thread.Sleep(TimeSpan.FromSeconds(1));
-            Assert.That(_database.KeyExists("key"), Is.False);
+            Database.KeyExists("key").Should().BeFalse();
         }
 
         [Test]
         public void CanUpdateExactExpirationTimeForKey()
         {
-            _database.StringSet("key", "value", TimeSpan.FromSeconds(1));
-            _database.KeyExpire("key", DateTime.Now);
+            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
+            Database.KeyExpire("key", DateTime.Now);
 
-            Assert.That(_database.KeyExists("key"), Is.False);
+            Database.KeyExists("key").Should().BeFalse();
         }
 
         [Test]
         public void CanGetTtlForExistingKey()
         {
-            _database.StringSet("key", "value", TimeSpan.FromSeconds(1));
+            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
 
-            var ttl = _database.KeyTimeToLive("key");
+            var ttl = Database.KeyTimeToLive("key");
 
-            Assert.That(ttl, Is.Not.Null);
-            Assert.That(ttl, Is.LessThanOrEqualTo(TimeSpan.FromSeconds(1)));
+            ttl.Should().NotBeNull();
+            ttl.Should().BeLessOrEqualTo(TimeSpan.FromSeconds(1));
         }
     }
 }
