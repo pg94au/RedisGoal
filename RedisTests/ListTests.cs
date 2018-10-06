@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using StackExchange.Redis;
@@ -11,195 +6,172 @@ using StackExchange.Redis;
 namespace RedisTests
 {
     [TestFixture]
-    public class ListTests
+    public class ListTests : RedisTestFixture
     {
-        private ConnectionMultiplexer _connectionMultiplexer;
-        private IDatabase _database;
-
-        [SetUp]
-        public void SetUp()
-        {
-            // Flush database before each test runs.
-            using (var adminConnectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
-            {
-                adminConnectionMultiplexer.GetServer("localhost:6379").FlushAllDatabases();
-            }
-
-            _connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379");
-            _database = _connectionMultiplexer.GetDatabase();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            _database = null;
-            _connectionMultiplexer.Dispose();
-        }
-
         [Test]
         public void CanLeftOrRightPushItemToNewList()
         {
-            _database.ListLeftPush("list1", "1");
-            _database.ListRightPush("list2", "2");
+            Database.ListLeftPush("list1", "1");
+            Database.ListRightPush("list2", "2");
 
-            Assert.That(_database.ListLength("list1"), Is.EqualTo(1));
-            Assert.That(_database.ListLength("list2"), Is.EqualTo(1));
+            Database.ListLength("list1").Should().Be(1);
+            Database.ListLength("list2").Should().Be(1);
 
-            Assert.That(_database.ListRange("list1").Select(rv => rv.Box()), Is.EquivalentTo(new[] { "1" }));
-            Assert.That(_database.ListRange("list2").Select(rv => rv.Box()), Is.EquivalentTo(new[] { "2" }));
+            Database.ListRange("list1").Select(rv => rv.ToString()).Should().BeEquivalentTo("1");
+            Database.ListRange("list2").Select(rv => rv.ToString()).Should().BeEquivalentTo("2");
         }
 
         [Test]
         public void CanGetLengthOfList()
         {
-            _database.ListLeftPush("list", "1");
-            _database.ListLeftPush("list", "2");
+            Database.ListLeftPush("list", "1");
+            Database.ListLeftPush("list", "2");
 
-            Assert.That(_database.ListLength("list"), Is.EqualTo(2));
+            Database.ListLength("list").Should().Be(2);
         }
 
         [Test]
         public void CanPushNewItemToLeftOfList()
         {
-            _database.ListLeftPush("list", "1");
-            _database.ListLeftPush("list", "2");
+            Database.ListLeftPush("list", "1");
+            Database.ListLeftPush("list", "2");
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("2", "1");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("2", "1");
         }
 
         [Test]
         public void CanPushNewItemToRightOfList()
         {
-            _database.ListLeftPush("list", "1");
-            _database.ListRightPush("list", "2");
+            Database.ListLeftPush("list", "1");
+            Database.ListRightPush("list", "2");
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "2");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "2");
         }
 
         [Test]
         public void CanGetElementOfListByIndex()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
 
-            _database.ListGetByIndex("list", 1).Should().Be("2");
+            Database.ListGetByIndex("list", 1).Should().Be("2");
         }
 
         [Test]
         public void CanSetElementOfListByIndex()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
 
-            _database.ListSetByIndex("list", 1, "9");
+            Database.ListSetByIndex("list", 1, "9");
 
-            _database.ListGetByIndex("list", 1).Should().Be("9");
+            Database.ListGetByIndex("list", 1).Should().Be("9");
         }
 
         [Test]
         public void CanRemoveAllElementsFromListWithMatchingValue()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
-            _database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "2");
 
-            _database.ListRemove("list", "2");
+            Database.ListRemove("list", "2");
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "3");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "3");
 
         }
 
         [Test]
         public void CanRemoveLimitedNumberOfElementFromListByValue()
         {
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
-            _database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "2");
 
-            _database.ListRemove("list", "2", 2);
+            Database.ListRemove("list", "2", 2);
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "3", "2");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "3", "2");
         }
 
         [Test]
         public void CanInsertElementIntoListBeforeFirstInstanceOfSpecifiedExistingValue()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
-            _database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "2");
 
-            _database.ListInsertBefore("list", "2", "9");
+            Database.ListInsertBefore("list", "2", "9");
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "9", "2", "3", "2");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "9", "2", "3", "2");
         }
 
 
         [Test]
         public void CanInsertElementIntoListAfterFirstInstanceOfSpecifiedExistingValue()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
-            _database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "2");
 
-            _database.ListInsertAfter("list", "2", "9");
+            Database.ListInsertAfter("list", "2", "9");
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "2", "9", "3", "2");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("1", "2", "9", "3", "2");
         }
 
         [Test]
         public void CanPopElementFromLeftOfList()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
 
-            _database.ListLeftPop("list").Should().Be("1");
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("2");
+            Database.ListLeftPop("list").Should().Be("1");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("2");
         }
 
         [Test]
         public void CanPopElementFromRightOfList()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
 
-            _database.ListRightPop("list").Should().Be("2");
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("1");
+            Database.ListRightPop("list").Should().Be("2");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("1");
         }
 
         [Test]
         public void CanPushValuePoppedFromOneListToAnother()
         {
-            _database.ListRightPush("list1", "1");
-            _database.ListRightPush("list1", "2");
+            Database.ListRightPush("list1", "1");
+            Database.ListRightPush("list1", "2");
 
-            _database.ListRightPush("list2", "3");
-            _database.ListRightPush("list2", "4");
+            Database.ListRightPush("list2", "3");
+            Database.ListRightPush("list2", "4");
 
-            _database.ListRightPopLeftPush("list1", "list2");
+            Database.ListRightPopLeftPush("list1", "list2");
 
-            _database.ListRange("list1").ToStringArray().Should().ContainInOrder("1");
-            _database.ListRange("list2").ToStringArray().Should().ContainInOrder("2", "3", "4");
+            Database.ListRange("list1").ToStringArray().Should().ContainInOrder("1");
+            Database.ListRange("list2").ToStringArray().Should().ContainInOrder("2", "3", "4");
         }
 
         [Test]
         public void CanTrimListToRetainOnlySpecifiedRange()
         {
-            _database.ListRightPush("list", "1");
-            _database.ListRightPush("list", "2");
-            _database.ListRightPush("list", "3");
-            _database.ListRightPush("list", "4");
-            _database.ListRightPush("list", "5");
+            Database.ListRightPush("list", "1");
+            Database.ListRightPush("list", "2");
+            Database.ListRightPush("list", "3");
+            Database.ListRightPush("list", "4");
+            Database.ListRightPush("list", "5");
 
-            _database.ListTrim("list", 1, 3);
+            Database.ListTrim("list", 1, 3);
 
-            _database.ListRange("list").ToStringArray().Should().ContainInOrder("2", "3", "4");
+            Database.ListRange("list").ToStringArray().Should().ContainInOrder("2", "3", "4");
         }
 
         // Blocking operations are not directly implemented by StackExchange.Redis
