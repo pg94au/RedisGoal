@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2003
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedisTests", "RedisTests\RedisTests.csproj", "{02320AC7-EEF7-4EE5-B7CA-F72403448B0E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedisTests", "RedisTests\RedisTests.csproj", "{02320AC7-EEF7-4EE5-B7CA-F72403448B0E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CallCenter", "CallCenter\CallCenter.csproj", "{CC5A6119-8016-4D7F-AF04-95C01DAFB96F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{02320AC7-EEF7-4EE5-B7CA-F72403448B0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{02320AC7-EEF7-4EE5-B7CA-F72403448B0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{02320AC7-EEF7-4EE5-B7CA-F72403448B0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC5A6119-8016-4D7F-AF04-95C01DAFB96F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC5A6119-8016-4D7F-AF04-95C01DAFB96F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC5A6119-8016-4D7F-AF04-95C01DAFB96F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC5A6119-8016-4D7F-AF04-95C01DAFB96F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
