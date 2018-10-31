@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using FluentAssertions;
+﻿using FluentAssertions;
 using NUnit.Framework;
 
 namespace CallCenter.Tests
@@ -12,7 +9,7 @@ namespace CallCenter.Tests
         [Test]
         public void CanAddAttendant()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new [] {"English", "French"}, new [] {"Plumbing", "Fishing"});
@@ -23,7 +20,7 @@ namespace CallCenter.Tests
         [Test]
         public void CanRemoveAttendant()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -36,7 +33,7 @@ namespace CallCenter.Tests
         [Test]
         public void CanAssignSuitableAttendant()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -51,7 +48,7 @@ namespace CallCenter.Tests
         [Test]
         public void WhenNoSuitableAttendantNoneAssigned()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -66,7 +63,7 @@ namespace CallCenter.Tests
         [Test]
         public void BusyAttendantsAreNotSuitableForAssignment()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -84,7 +81,7 @@ namespace CallCenter.Tests
         [Test]
         public void WhenOnlySuitableCandidatesAreBusyNoneIsSelected()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -100,7 +97,7 @@ namespace CallCenter.Tests
         [Test]
         public void CanSetBusyAttendantAvailable()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -115,7 +112,7 @@ namespace CallCenter.Tests
         [Test]
         public void MarkingAvailableAttendantAvailableHasNoEffect()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -128,7 +125,7 @@ namespace CallCenter.Tests
         [Test]
         public void BusyAttendantsSetAvailableCanBeSelectedAgain()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
@@ -145,7 +142,7 @@ namespace CallCenter.Tests
         [Test]
         public void RemovedAttendantsCannotBeSelected()
         {
-            var callCenter = new CallCenter();
+            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
             callCenter.Flush();
 
             callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });

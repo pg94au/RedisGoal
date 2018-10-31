@@ -16,9 +16,20 @@ namespace CallCenter
     /// </summary>
     public class CallCenter
     {
+        private readonly string _redisHost;
+        private readonly int _redisPort;
+
+        private string ConnectionString => $"{_redisHost}:{_redisPort},AllowAdmin=true";
+
+        public CallCenter(string redisHost, int redisPort)
+        {
+            _redisHost = redisHost;
+            _redisPort = redisPort;
+        }
+
         public void AddAttendant(string name, IEnumerable<string> languages, IEnumerable<string> skills)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
                 var database = connectionMultiplexer.GetDatabase();
 
@@ -41,7 +52,7 @@ namespace CallCenter
 
         public void RemoveAttendant(string name)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
                 var database = connectionMultiplexer.GetDatabase();
 
@@ -64,7 +75,7 @@ namespace CallCenter
 
         public IEnumerable<string> GetAttendants()
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
                 var database = connectionMultiplexer.GetDatabase();
 
@@ -74,7 +85,7 @@ namespace CallCenter
 
         public string AssignAttendant(IEnumerable<string> languages, IEnumerable<string> skills)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
                 var database = connectionMultiplexer.GetDatabase();
 
@@ -119,7 +130,7 @@ namespace CallCenter
 
         public IEnumerable<string> GetBusyAttendants()
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
                 var database = connectionMultiplexer.GetDatabase();
 
@@ -129,7 +140,7 @@ namespace CallCenter
 
         public bool SetAttendantAvailable(string name)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
                 var database = connectionMultiplexer.GetDatabase();
 
@@ -139,9 +150,9 @@ namespace CallCenter
 
         public void Flush()
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
             {
-                var server = connectionMultiplexer.GetServer("localhost:6379");
+                var server = connectionMultiplexer.GetServer($"{_redisHost}:{_redisPort}");
                 server.FlushAllDatabases();
             }
         }

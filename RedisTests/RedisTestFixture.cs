@@ -1,5 +1,4 @@
-﻿using System;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using StackExchange.Redis;
 
 namespace RedisTests
@@ -14,12 +13,12 @@ namespace RedisTests
         public void SetUp()
         {
             // Flush database before each test runs.
-            using (var adminConnectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379,allowAdmin=true"))
+            using (var adminConnectionMultiplexer = ConnectionMultiplexer.Connect($"localhost:{RedisSetUp.Port},allowAdmin=true"))
             {
-                adminConnectionMultiplexer.GetServer("localhost:6379").FlushAllDatabases();
+                adminConnectionMultiplexer.GetServer($"localhost:{RedisSetUp.Port}").FlushAllDatabases();
             }
 
-            ConnectionMultiplexer = ConnectionMultiplexer.Connect("localhost:6379");
+            ConnectionMultiplexer = ConnectionMultiplexer.Connect($"localhost:{RedisSetUp.Port}");
             Database = ConnectionMultiplexer.GetDatabase();
         }
 
