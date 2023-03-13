@@ -1,129 +1,130 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using StackExchange.Redis;
 
-namespace RedisTests
+namespace RedisTests;
+
+[TestFixture]
+public class KeyValueTests : RedisTestFixture
 {
-    public class KeyValueTests : RedisTestFixture
+    [Test]
+    public async Task ValuesAreNullForUnsetKeys()
     {
-        [Test]
-        public void ValuesAreNullForUnsetKeys()
-        {
-            Database.StringGet("foo").HasValue.Should().BeFalse();
-        }
+        (await Database.StringGetAsync("foo")).HasValue.Should().BeFalse();
+    }
 
-        [Test]
-        public void CanGetValueOfKeyAfterSettingIt()
-        {
-            Database.StringSet("foo", "bar");
+    [Test]
+    public async Task CanGetValueOfKeyAfterSettingIt()
+    {
+        await Database.StringSetAsync("foo", "bar");
 
-            Database.StringGet("foo").Should().Be("bar");
-        }
+        (await Database.StringGetAsync("foo")).Should().Be("bar");
+    }
 
-        [Test]
-        public void CanConditionallySetValueIfKeyAlreadyExists()
-        {
-            Database.StringSet("there", "1");
+    [Test]
+    public async Task CanConditionallySetValueIfKeyAlreadyExists()
+    {
+        await Database.StringSetAsync("there", "1");
 
-            Database.StringSet("there", "2", null, When.Exists);
-            Database.StringSet("notThere", "1", null, When.Exists);
+        await Database.StringSetAsync("there", "2", null, When.Exists);
+        await Database.StringSetAsync("notThere", "1", null, When.Exists);
 
-            Database.StringGet("there").Should().Be("2");
-            Database.KeyExists("notThere").Should().BeFalse();
-        }
+        (await Database.StringGetAsync("there")).Should().Be("2");
+        (await Database.KeyExistsAsync("notThere")).Should().BeFalse();
+    }
 
-        [Test]
-        public void CanConditionallySetValueIfKeyDoesNotAlreadyExist()
-        {
-            Database.StringSet("there", "1");
+    [Test]
+    public async Task CanConditionallySetValueIfKeyDoesNotAlreadyExist()
+    {
+        await Database.StringSetAsync("there", "1");
 
-            Database.StringSet("there", "2", null, When.NotExists);
-            Database.StringSet("notThere", "1", null, When.NotExists);
+        await Database.StringSetAsync("there", "2", null, When.NotExists);
+        await Database.StringSetAsync("notThere", "1", null, When.NotExists);
 
-            Database.StringGet("there").Should().Be("1");
-            Database.StringGet("notThere").Should().Be("1");
-        }
+        (await Database.StringGetAsync("there")).Should().Be("1");
+        (await Database.StringGetAsync("notThere")).Should().Be("1");
+    }
 
-        [Test]
-        public void CanRetrieveExistingValueWhileUpdatingIt()
-        {
-            Database.StringSet("key", "value1");
+    [Test]
+    public async Task CanRetrieveExistingValueWhileUpdatingIt()
+    {
+        await Database.StringSetAsync("key", "value1");
 
-            var oldValue = Database.StringGetSet("key", "value2");
+        var oldValue = await Database.StringGetSetAsync("key", "value2");
 
-            oldValue.Should().Be("value1");
-            Database.StringGet("key").Should().Be("value2");
-        }
+        oldValue.Should().Be("value1");
+        (await Database.StringGetAsync("key")).Should().Be("value2");
+    }
 
-        [Test]
-        public void CanRemoveExistingKeyValuePair()
-        {
-            Database.StringSet("key", "value");
-            Database.KeyDelete("key");
+    [Test]
+    public async Task CanRemoveExistingKeyValuePair()
+    {
+        await Database.StringSetAsync("key", "value");
+        await Database.KeyDeleteAsync("key");
 
-            Database.KeyExists("key").Should().BeFalse();
-        }
+        (await Database.KeyExistsAsync("key")).Should().BeFalse();
+    }
 
-        [Test]
-        public void CanCheckIfKeyExists()
-        {
-            Database.StringSet("key", "value");
+    [Test]
+    public async Task CanCheckIfKeyExists()
+    {
+        await Database.StringSetAsync("key", "value");
 
-            Database.KeyExists("key").Should().BeTrue();
-        }
+        (await Database.KeyExistsAsync("key")).Should().BeTrue();
+    }
 
-        [Test]
-        public void CanRenameKey()
-        {
-            Database.StringSet("key1", "value");
-            Database.KeyRename("key1", "key2");
+    [Test]
+    public async Task CanRenameKey()
+    {
+        await Database.StringSetAsync("key1", "value");
+        await Database.KeyRenameAsync("key1", "key2");
 
-            Database.KeyExists("key1").Should().BeFalse();
-            Database.StringGet("key2").Should().Be("value");
-        }
+        (await Database.KeyExistsAsync("key1")).Should().BeFalse();
+        (await Database.StringGetAsync("key2")).Should().Be("value");
+    }
 
-        [Test]
-        public void CanSetExpirationPeriodForKey()
-        {
-            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
+    [Test]
+    public async Task CanSetExpirationPeriodForKey()
+    {
+        await Database.StringSetAsync("key", "value", TimeSpan.FromSeconds(1));
 
-            Database.KeyExists("key").Should().BeTrue();
-            Thread.Sleep(TimeSpan.FromSeconds(1));
-            Database.KeyExists("key").Should().BeFalse();
-        }
+        (await Database.KeyExistsAsync("key")).Should().BeTrue();
+        await Task.Delay(TimeSpan.FromSeconds(1));
+        (await Database.KeyExistsAsync("key")).Should().BeFalse();
+    }
 
-        [Test]
-        public void CanUpdateExpirationPeriodForKey()
-        {
-            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
-            Database.KeyExpire("key", TimeSpan.FromSeconds(2));
+    [Test]
+    public async Task CanUpdateExpirationPeriodForKey()
+    {
+        await Database.StringSetAsync("key", "value", TimeSpan.FromSeconds(1));
+        await Database.KeyExpireAsync("key", TimeSpan.FromSeconds(2));
 
-            Thread.Sleep(TimeSpan.FromSeconds(1));
-            Database.StringGet("key").Should().Be("value");
-            Thread.Sleep(TimeSpan.FromSeconds(1));
-            Database.KeyExists("key").Should().BeFalse();
-        }
+        await Task.Delay(TimeSpan.FromSeconds(1));
+        (await Database.StringGetAsync("key")).Should().Be("value");
+        await Task.Delay(TimeSpan.FromSeconds(1));
+        (await Database.KeyExistsAsync("key")).Should().BeFalse();
+    }
 
-        [Test]
-        public void CanUpdateExactExpirationTimeForKey()
-        {
-            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
-            Database.KeyExpire("key", DateTime.Now);
+    [Test]
+    public async Task CanUpdateExactExpirationTimeForKey()
+    {
+        await Database.StringSetAsync("key", "value", TimeSpan.FromSeconds(1));
+        await Database.KeyExpireAsync("key", DateTime.Now);
 
-            Database.KeyExists("key").Should().BeFalse();
-        }
+        (await Database.KeyExistsAsync("key")).Should().BeFalse();
+    }
 
-        [Test]
-        public void CanGetTtlForExistingKey()
-        {
-            Database.StringSet("key", "value", TimeSpan.FromSeconds(1));
+    [Test]
+    public async Task CanGetTtlForExistingKey()
+    {
+        await Database.StringSetAsync("key", "value", TimeSpan.FromSeconds(1));
 
-            var ttl = Database.KeyTimeToLive("key");
+        var ttl = await Database.KeyTimeToLiveAsync("key");
 
-            ttl.Should().NotBeNull();
-            ttl.Should().BeLessOrEqualTo(TimeSpan.FromSeconds(1));
-        }
+        ttl.Should().NotBeNull();
+        ttl.Should().BeLessOrEqualTo(TimeSpan.FromSeconds(1));
     }
 }

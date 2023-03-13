@@ -1,24 +1,24 @@
-﻿using NUnit.Framework;
+﻿using System.Threading.Tasks;
+using FluentAssertions;
+using NUnit.Framework;
 using StackExchange.Redis;
 
-namespace RedisTests
+namespace RedisTests;
+
+[TestFixture]
+public class FlushTests : RedisTestFixture
 {
-    [TestFixture]
-    public class FlushTests
+    [Test]
+    public async Task FlushAllDatabasesRemovesEverythingFromRedis()
     {
-        [Test]
-        public void FlushAllDatabasesRemovesEverythingFromRedis()
-        {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect($"localhost:{RedisSetUp.Port},allowAdmin=true"))
-            {
-                var database = connectionMultiplexer.GetDatabase();
-                database.StringSet("foo", "bar");
+        await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync($"{RedisContainer.GetConnectionString()},allowAdmin=true");
 
-                var server = connectionMultiplexer.GetServer($"localhost:{RedisSetUp.Port}");
-                server.FlushAllDatabases();
+        var database = connectionMultiplexer.GetDatabase();
+        await database.StringSetAsync("foo", "bar");
 
-                Assert.That(database.KeyExists("foo"), Is.False);
-            }
-        }
+        var server = connectionMultiplexer.GetServer(RedisContainer.GetConnectionString());
+        await server.FlushAllDatabasesAsync();
+
+        (await database.KeyExistsAsync("foo")).Should().BeFalse();
     }
 }

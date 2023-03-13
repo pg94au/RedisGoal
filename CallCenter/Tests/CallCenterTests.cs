@@ -1,154 +1,155 @@
-﻿using FluentAssertions;
+﻿using System.Threading.Tasks;
+using FluentAssertions;
 using NUnit.Framework;
 
 namespace CallCenter.Tests
 {
     [TestFixture]
-    public class CallCenterTests
+    public class CallCenterTests : RedisTestFixture
     {
         [Test]
-        public void CanAddAttendant()
+        public async Task CanAddAttendant()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new [] {"English", "French"}, new [] {"Plumbing", "Fishing"});
+            await callCenter.AddAttendantAsync("Bob", new [] {"English", "French"}, new [] {"Plumbing", "Fishing"});
 
-            callCenter.GetAttendants().Should().Contain("Bob");
+            (await callCenter.GetAttendantsAsync()).Should().Contain("Bob");
         }
 
         [Test]
-        public void CanRemoveAttendant()
+        public async Task CanRemoveAttendant()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            callCenter.RemoveAttendant("Bob");
+            await callCenter.RemoveAttendantAsync("Bob");
 
-            callCenter.GetAttendants().Should().BeEmpty();
+            (await callCenter.GetAttendantsAsync()).Should().BeEmpty();
         }
 
         [Test]
-        public void CanAssignSuitableAttendant()
+        public async Task CanAssignSuitableAttendant()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            var chosen = callCenter.AssignAttendant(new[] {"French"}, new[] {"Fishing"});
+            var chosen = await callCenter.AssignAttendantAsync(new[] {"French"}, new[] {"Fishing"});
 
             chosen.Should().Be("Bob");
 
-            callCenter.GetBusyAttendants().Should().Contain("Bob");
+            (await callCenter.GetBusyAttendantsAsync()).Should().Contain("Bob");
         }
 
         [Test]
-        public void WhenNoSuitableAttendantNoneAssigned()
+        public async Task WhenNoSuitableAttendantNoneAssigned()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            var chosen = callCenter.AssignAttendant(new[] { "French" }, new[] { "Knitting" });
+            var chosen = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Knitting" });
 
             chosen.Should().BeNull();
 
-            callCenter.GetBusyAttendants().Should().BeEmpty();
+            (await callCenter.GetBusyAttendantsAsync()).Should().BeEmpty();
         }
 
         [Test]
-        public void BusyAttendantsAreNotSuitableForAssignment()
+        public async Task BusyAttendantsAreNotSuitableForAssignment()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            var busy = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var busy = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
 
-            callCenter.AddAttendant("Fred", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Fred", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            var chosen = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var chosen = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
             chosen.Should().Be("Fred");
 
-            callCenter.GetBusyAttendants().Should().Contain("Bob", "Fred");
+            (await callCenter.GetBusyAttendantsAsync()).Should().Contain("Bob", "Fred");
         }
 
         [Test]
-        public void WhenOnlySuitableCandidatesAreBusyNoneIsSelected()
+        public async Task WhenOnlySuitableCandidatesAreBusyNoneIsSelected()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            var busy = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var busy = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
 
-            var chosen = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var chosen = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
             chosen.Should().BeNull();
 
-            callCenter.GetBusyAttendants().Should().Contain("Bob");
+            (await callCenter.GetBusyAttendantsAsync()).Should().Contain("Bob");
         }
 
         [Test]
-        public void CanSetBusyAttendantAvailable()
+        public async Task CanSetBusyAttendantAvailable()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            var busy = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var busy = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
 
-            callCenter.SetAttendantAvailable(busy).Should().BeTrue();
+            (await callCenter.SetAttendantAvailableAsync(busy)).Should().BeTrue();
 
-            callCenter.GetBusyAttendants().Should().BeEmpty();
+            (await callCenter.GetBusyAttendantsAsync()).Should().BeEmpty();
         }
 
         [Test]
-        public void MarkingAvailableAttendantAvailableHasNoEffect()
+        public async Task MarkingAvailableAttendantAvailableHasNoEffect()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            callCenter.SetAttendantAvailable("Bob").Should().BeFalse();
+            (await callCenter.SetAttendantAvailableAsync("Bob")).Should().BeFalse();
 
-            callCenter.GetBusyAttendants().Should().BeEmpty();
+            (await callCenter.GetBusyAttendantsAsync()).Should().BeEmpty();
         }
 
         [Test]
-        public void BusyAttendantsSetAvailableCanBeSelectedAgain()
+        public async Task BusyAttendantsSetAvailableCanBeSelectedAgain()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
 
-            callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
-            callCenter.SetAttendantAvailable("Bob");
+            await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
+            await callCenter.SetAttendantAvailableAsync("Bob");
 
-            var busy = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var busy = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
             busy.Should().Be("Bob");
 
-            callCenter.GetBusyAttendants().Should().Contain("Bob");
+            (await callCenter.GetBusyAttendantsAsync()).Should().Contain("Bob");
         }
 
         [Test]
-        public void RemovedAttendantsCannotBeSelected()
+        public async Task RemovedAttendantsCannotBeSelected()
         {
-            var callCenter = new CallCenter("localhost", RedisSetUp.Port);
-            callCenter.Flush();
+            var callCenter = new CallCenter(RedisContainer.GetConnectionString());
+            await callCenter.FlushAsync();
 
-            callCenter.AddAttendant("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
-            callCenter.RemoveAttendant("Bob");
+            await callCenter.AddAttendantAsync("Bob", new[] { "English", "French" }, new[] { "Plumbing", "Fishing" });
+            await callCenter.RemoveAttendantAsync("Bob");
 
-            var chosen = callCenter.AssignAttendant(new[] { "French" }, new[] { "Fishing" });
+            var chosen = await callCenter.AssignAttendantAsync(new[] { "French" }, new[] { "Fishing" });
 
             chosen.Should().BeNull();
         }

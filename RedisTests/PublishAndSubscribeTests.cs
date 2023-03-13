@@ -1,165 +1,164 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using StackExchange.Redis;
 
-namespace RedisTests
+namespace RedisTests;
+
+[TestFixture]
+public class PublishAndSubscribeTests : RedisTestFixture
 {
-    public class PublishAndSubscribeTests : RedisTestFixture
+    [Test]
+    public async Task CanSubscribeToChannelAndReceiveMessagePublishedToIt()
     {
-        [Test]
-        public void CanSubscribeToChannelAndReceiveMessagePublishedToIt()
+        var subscriber = ConnectionMultiplexer.GetSubscriber();
+
+        RedisChannel receivedChannel = default;
+        RedisValue receivedValue = default;
+        var receivedEvent = new ManualResetEvent(false);
+
+        await subscriber.SubscribeAsync("channel", (channel, value) =>
         {
-            var subscriber = ConnectionMultiplexer.GetSubscriber();
+            receivedChannel = channel;
+            receivedValue = value;
+            receivedEvent.Set();
+        });
 
-            RedisChannel receivedChannel = default(RedisChannel);
-            RedisValue receivedValue = default(RedisValue);
-            var receivedEvent = new ManualResetEvent(false);
+        await Database.PublishAsync("channel", "Hello");
 
-            subscriber.Subscribe("channel", (channel, value) =>
-            {
-                receivedChannel = channel;
-                receivedValue = value;
-                receivedEvent.Set();
-            });
+        receivedEvent.WaitOne(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        receivedChannel.Should().Be("channel");
+        receivedValue.Should().Be("Hello");
+    }
 
-            Database.Publish("channel", "Hello");
+    [Test]
+    public async Task IfNoSubscriberExistsWhenMessageIsPublishedThenMessageIsLost()
+    {
+        await Database.PublishAsync("channel", "Hello");
 
-            receivedEvent.WaitOne(TimeSpan.FromSeconds(5)).Should().BeTrue();
-            receivedChannel.Should().Be("channel");
-            receivedValue.Should().Be("Hello");
-        }
+        var subscriber = ConnectionMultiplexer.GetSubscriber();
 
-        [Test]
-        public void IfNoSubscriberExistsWhenMessageIsPublishedThenMessageIsLost()
+        var receivedEvent = new ManualResetEvent(false);
+
+        await subscriber.SubscribeAsync("channel", (channel, value) => { receivedEvent.Set(); });
+
+        receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task WhenMultipleSubscribersExistTheyEachReceivePublishedMessage()
+    {
+        var subscriber1 = ConnectionMultiplexer.GetSubscriber();
+        var subscriber2 = ConnectionMultiplexer.GetSubscriber();
+
+        RedisChannel receivedChannel1 = default;
+        RedisChannel receivedChannel2 = default;
+        RedisValue receivedValue1 = default;
+        RedisValue receivedValue2 = default;
+        var receivedEvent1 = new ManualResetEvent(false);
+        var receivedEvent2 = new ManualResetEvent(false);
+
+        await subscriber1.SubscribeAsync("channel", (channel, value) =>
         {
-            Database.Publish("channel", "Hello");
+            receivedChannel1 = channel;
+            receivedValue1 = value;
+            receivedEvent1.Set();
+        });
 
-            var subscriber = ConnectionMultiplexer.GetSubscriber();
-
-            var receivedEvent = new ManualResetEvent(false);
-
-            subscriber.Subscribe("channel", (channel, value) => { receivedEvent.Set(); });
-
-            receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeFalse();
-        }
-
-        [Test]
-        public void WhenMultipleSubscribersExistTheyEachReceivePublishedMessage()
+        await subscriber2.SubscribeAsync("channel", (channel, value) =>
         {
-            var subscriber1 = ConnectionMultiplexer.GetSubscriber();
-            var subscriber2 = ConnectionMultiplexer.GetSubscriber();
+            receivedChannel2 = channel;
+            receivedValue2 = value;
+            receivedEvent2.Set();
+        });
 
-            RedisChannel receivedChannel1 = default(RedisChannel);
-            RedisChannel receivedChannel2 = default(RedisChannel);
-            RedisValue receivedValue1 = default(RedisValue);
-            RedisValue receivedValue2 = default(RedisValue);
-            var receivedEvent1 = new ManualResetEvent(false);
-            var receivedEvent2 = new ManualResetEvent(false);
+        await Database.PublishAsync("channel", "Hello");
 
-            subscriber1.Subscribe("channel", (channel, value) =>
-            {
-                receivedChannel1 = channel;
-                receivedValue1 = value;
-                receivedEvent1.Set();
-            });
+        WaitHandle.WaitAll(new WaitHandle[] {receivedEvent1, receivedEvent2}, TimeSpan.FromSeconds(5))
+            .Should()
+            .BeTrue();
+        receivedChannel1.Should().Be("channel");
+        receivedChannel2.Should().Be("channel");
+        receivedValue1.Should().Be("Hello");
+        receivedValue2.Should().Be("Hello");
+    }
 
-            subscriber2.Subscribe("channel", (channel, value) =>
-            {
-                receivedChannel2 = channel;
-                receivedValue2 = value;
-                receivedEvent2.Set();
-            });
+    [Test]
+    public async Task CanSubscribeToMultipleChannelsFromOneSubscriber()
+    {
+        var subscriber = ConnectionMultiplexer.GetSubscriber();
 
-            Database.Publish("channel", "Hello");
+        var receivedEvent1 = new ManualResetEvent(false);
+        await subscriber.SubscribeAsync("channel1", (channel, value) => { receivedEvent1.Set(); });
 
-            WaitHandle.WaitAll(new[] {receivedEvent1, receivedEvent2}, TimeSpan.FromSeconds(5))
-                .Should()
-                .BeTrue();
-            receivedChannel1.Should().Be("channel");
-            receivedChannel2.Should().Be("channel");
-            receivedValue1.Should().Be("Hello");
-            receivedValue2.Should().Be("Hello");
-        }
+        var receivedEvent2 = new ManualResetEvent(false);
+        await subscriber.SubscribeAsync("channel2", (channel, value) => { receivedEvent2.Set(); });
 
-        [Test]
-        public void CanSubscribeToMultipleChannelsFromOneSubscriber()
-        {
-            var subscriber = ConnectionMultiplexer.GetSubscriber();
+        await Database.PublishAsync("channel1", "Hello");
+        receivedEvent1.WaitOne(TimeSpan.FromSeconds(5)).Should().BeTrue();
 
-            var receivedEvent1 = new ManualResetEvent(false);
-            subscriber.Subscribe("channel1", (channel, value) => { receivedEvent1.Set(); });
+        await Database.PublishAsync("channel2", "Hello");
+        receivedEvent2.WaitOne(TimeSpan.FromSeconds(5)).Should().BeTrue();
+    }
 
-            var receivedEvent2 = new ManualResetEvent(false);
-            subscriber.Subscribe("channel2", (channel, value) => { receivedEvent2.Set(); });
+    [Test]
+    public async Task CanUnsubscribeFromSingleChannel()
+    {
+        var subscriber = ConnectionMultiplexer.GetSubscriber();
 
-            Database.Publish("channel1", "Hello");
-            receivedEvent1.WaitOne(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        var receivedEvent1 = new ManualResetEvent(false);
+        await subscriber.SubscribeAsync("channel1", (channel, value) => { receivedEvent1.Set(); });
 
-            Database.Publish("channel2", "Hello");
-            receivedEvent2.WaitOne(TimeSpan.FromSeconds(5)).Should().BeTrue();
-        }
+        var receivedEvent2 = new ManualResetEvent(false);
+        await subscriber.SubscribeAsync("channel2", (channel, value) => { receivedEvent2.Set(); });
 
-        [Test]
-        public void CanUnsubscribeFromSingleChannel()
-        {
-            var subscriber = ConnectionMultiplexer.GetSubscriber();
+        await subscriber.UnsubscribeAsync("channel1");
 
-            var receivedEvent1 = new ManualResetEvent(false);
-            subscriber.Subscribe("channel1", (channel, value) => { receivedEvent1.Set(); });
+        await Database.PublishAsync("channel1", "Hello");
+        await Database.PublishAsync("channel2", "Hello");
 
-            var receivedEvent2 = new ManualResetEvent(false);
-            subscriber.Subscribe("channel2", (channel, value) => { receivedEvent2.Set(); });
+        receivedEvent1.WaitOne(TimeSpan.FromSeconds(1)).Should().BeFalse();
+        receivedEvent2.WaitOne(TimeSpan.FromSeconds(1)).Should().BeTrue();
+    }
 
-            subscriber.Unsubscribe("channel1");
+    [Test]
+    public async Task CanUnsubscribeFromAllChannels()
+    {
+        var subscriber = ConnectionMultiplexer.GetSubscriber();
 
-            Database.Publish("channel1", "Hello");
-            Database.Publish("channel2", "Hello");
+        var receivedEvent1 = new ManualResetEvent(false);
+        await subscriber.SubscribeAsync("channel1", (channel, value) => { receivedEvent1.Set(); });
 
-            receivedEvent1.WaitOne(TimeSpan.FromSeconds(1)).Should().BeFalse();
-            receivedEvent2.WaitOne(TimeSpan.FromSeconds(1)).Should().BeTrue();
-        }
+        var receivedEvent2 = new ManualResetEvent(false);
+        await subscriber.SubscribeAsync("channel2", (channel, value) => { receivedEvent2.Set(); });
 
-        [Test]
-        public void CanUnsubscribeFromAllChannels()
-        {
-            var subscriber = ConnectionMultiplexer.GetSubscriber();
+        await subscriber.UnsubscribeAllAsync();
 
-            var receivedEvent1 = new ManualResetEvent(false);
-            subscriber.Subscribe("channel1", (channel, value) => { receivedEvent1.Set(); });
+        await Database.PublishAsync("channel1", "Hello");
+        await Database.PublishAsync("channel2", "Hello");
 
-            var receivedEvent2 = new ManualResetEvent(false);
-            subscriber.Subscribe("channel2", (channel, value) => { receivedEvent2.Set(); });
+        WaitHandle.WaitAny(new WaitHandle[] {receivedEvent1, receivedEvent2}, TimeSpan.FromSeconds(1))
+            .Should()
+            .Be(WaitHandle.WaitTimeout);
+    }
 
-            subscriber.UnsubscribeAll();
+    [Test]
+    public async Task CanSubscribeToChannelsByPattern()
+    {
+        var subscriber = ConnectionMultiplexer.GetSubscriber();
 
-            Database.Publish("channel1", "Hello");
-            Database.Publish("channel2", "Hello");
+        var receivedEvent = new AutoResetEvent(false);
+        await subscriber.SubscribeAsync("channel*", (channel, value) => { receivedEvent.Set(); });
 
-            WaitHandle.WaitAny(new[] {receivedEvent1, receivedEvent2}, TimeSpan.FromSeconds(1))
-                .Should()
-                .Be(WaitHandle.WaitTimeout);
-        }
+        await Database.PublishAsync("channel1", "Hello");
+        receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeTrue();
 
-        [Test]
-        public void CanSubscribeToChannelsByPattern()
-        {
-            var subscriber = ConnectionMultiplexer.GetSubscriber();
+        await Database.PublishAsync("channel2", "Hello");
+        receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeTrue();
 
-            var receivedEvent = new AutoResetEvent(false);
-            subscriber.Subscribe("channel*", (channel, value) => { receivedEvent.Set(); });
-
-            Database.Publish("channel1", "Hello");
-            receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeTrue();
-
-            Database.Publish("channel2", "Hello");
-            receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeTrue();
-
-            Database.Publish("xxx", "Hello");
-            receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeFalse();
-        }
+        await Database.PublishAsync("xxx", "Hello");
+        receivedEvent.WaitOne(TimeSpan.FromSeconds(1)).Should().BeFalse();
     }
 }

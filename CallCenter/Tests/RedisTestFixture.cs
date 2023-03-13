@@ -3,7 +3,7 @@ using StackExchange.Redis;
 using System.Threading.Tasks;
 using Testcontainers.Redis;
 
-namespace RedisTests;
+namespace CallCenter.Tests;
 
 public class RedisTestFixture
 {

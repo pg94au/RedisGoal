@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using JetBrains.Annotations;
 using StackExchange.Redis;
 
 namespace CallCenter
@@ -16,80 +18,70 @@ namespace CallCenter
     /// </summary>
     public class CallCenter
     {
-        private readonly string _redisHost;
-        private readonly int _redisPort;
+        private readonly string _redisConnectionString;
 
-        private string ConnectionString => $"{_redisHost}:{_redisPort},AllowAdmin=true";
-
-        public CallCenter(string redisHost, int redisPort)
+        public CallCenter(string redisConnectionString)
         {
-            _redisHost = redisHost;
-            _redisPort = redisPort;
+            _redisConnectionString = redisConnectionString;
         }
 
-        public void AddAttendant(string name, IEnumerable<string> languages, IEnumerable<string> skills)
+        public async Task AddAttendantAsync(string name, IEnumerable<string> languages, IEnumerable<string> skills)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
+            var database = connectionMultiplexer.GetDatabase();
+
+            // TODO: Cannot add attendant that already exists.
+            await database.SetAddAsync("attendants", name);
+
+            foreach (var language in languages)
             {
-                var database = connectionMultiplexer.GetDatabase();
+                await database.SetAddAsync("languages", language);
+                await database.SetAddAsync($"language_{language}", name);
+            }
 
-                // TODO: Cannot add attendant that already exists.
-                database.SetAdd("attendants", name);
-
-                foreach (var language in languages)
-                {
-                    database.SetAdd("languages", language);
-                    database.SetAdd($"language_{language}", name);
-                }
-
-                foreach (var skill in skills)
-                {
-                    database.SetAdd("skills", skill);
-                    database.SetAdd($"skill_{skill}", name);
-                }
+            foreach (var skill in skills)
+            {
+                await database.SetAddAsync("skills", skill);
+                await database.SetAddAsync($"skill_{skill}", name);
             }
         }
 
-        public void RemoveAttendant(string name)
+        public async Task RemoveAttendantAsync(string name)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
+            var database = connectionMultiplexer.GetDatabase();
+
+            // TODO: Cannot remove attendant while busy.
+            await database.SetRemoveAsync("attendants", name);
+
+            var languages = (await database.SetMembersAsync("languages")).Select(rv => rv.ToString());
+            foreach (var language in languages)
             {
-                var database = connectionMultiplexer.GetDatabase();
+                await database.SetAddAsync($"language_{language}", name);
+            }
 
-                // TODO: Cannot remove attendant while busy.
-                database.SetRemove("attendants", name);
-
-                var languages = database.SetMembers("languages").Select(rv => rv.ToString());
-                foreach (var language in languages)
-                {
-                    database.SetRemove($"language_{language}", name);
-                }
-
-                var skills = database.SetMembers("skills").Select(rv => rv.ToString());
-                foreach (var skill in skills)
-                {
-                    database.SetRemove($"skill_{skill}", name);
-                }
+            var skills = (await database.SetMembersAsync("skills")).Select(rv => rv.ToString());
+            foreach (var skill in skills)
+            {
+                await database.SetRemoveAsync($"skill_{skill}", name);
             }
         }
 
-        public IEnumerable<string> GetAttendants()
+        public async Task<IEnumerable<string>> GetAttendantsAsync()
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
-            {
-                var database = connectionMultiplexer.GetDatabase();
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
+            var database = connectionMultiplexer.GetDatabase();
 
-                return database.SetMembers("attendants").Select(rv => rv.ToString());
-            }
+            return (await database.SetMembersAsync("attendants")).Select(rv => rv.ToString());
         }
 
-        public string AssignAttendant(IEnumerable<string> languages, IEnumerable<string> skills)
+        [ItemCanBeNull]
+        public async Task<string> AssignAttendantAsync(IEnumerable<string> languages, IEnumerable<string> skills)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
-            {
-                var database = connectionMultiplexer.GetDatabase();
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
+            var database = connectionMultiplexer.GetDatabase();
 
-                var script = @"
+            var script = @"
                     -- Needed because writes are non-deterministic.
                     redis.replicate_commands()
 
@@ -117,44 +109,37 @@ namespace CallCenter
                     end
                 ";
 
-                var relevantSets = languages.Select(l => $"language_{l}")
-                    .Concat(skills.Select(s => $"skill_{s}"));
-                var keys = new RedisKey[] {Guid.NewGuid().ToString()}
-                    .Concat(relevantSets.Select(r => (RedisKey) r)).ToArray();
+            var relevantSets = languages.Select(l => $"language_{l}")
+                .Concat(skills.Select(s => $"skill_{s}"));
+            var keys = new RedisKey[] {Guid.NewGuid().ToString()}
+                .Concat(relevantSets.Select(r => (RedisKey) r)).ToArray();
 
-                var result = database.ScriptEvaluate(script, keys);
+            var result = await database.ScriptEvaluateAsync(script, keys);
 
-                return result.ToString();
-            }
+            return result.IsNull ? null : result.ToString();
         }
 
-        public IEnumerable<string> GetBusyAttendants()
+        public async Task<IEnumerable<string>> GetBusyAttendantsAsync()
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
-            {
-                var database = connectionMultiplexer.GetDatabase();
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
+            var database = connectionMultiplexer.GetDatabase();
 
-                return database.SetMembers("busy").Select(rv => rv.ToString());
-            }
+            return (await database.SetMembersAsync("busy")).Select(rv => rv.ToString());
         }
 
-        public bool SetAttendantAvailable(string name)
+        public async Task<bool> SetAttendantAvailableAsync(string name)
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
-            {
-                var database = connectionMultiplexer.GetDatabase();
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
+            var database = connectionMultiplexer.GetDatabase();
 
-                return database.SetRemove("busy", name);
-            }
+            return await database.SetRemoveAsync("busy", name);
         }
 
-        public void Flush()
+        public async Task FlushAsync()
         {
-            using (var connectionMultiplexer = ConnectionMultiplexer.Connect(ConnectionString))
-            {
-                var server = connectionMultiplexer.GetServer($"{_redisHost}:{_redisPort}");
-                server.FlushAllDatabases();
-            }
+            await using var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync($"{_redisConnectionString},allowAdmin=true");
+            var server = connectionMultiplexer.GetServer(_redisConnectionString);
+            await server.FlushAllDatabasesAsync();
         }
     }
 }
