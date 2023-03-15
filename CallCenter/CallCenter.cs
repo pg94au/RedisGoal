@@ -57,7 +57,7 @@ namespace CallCenter
             var languages = (await database.SetMembersAsync("languages")).Select(rv => rv.ToString());
             foreach (var language in languages)
             {
-                await database.SetAddAsync($"language_{language}", name);
+                await database.SetRemoveAsync($"language_{language}", name);
             }
 
             var skills = (await database.SetMembersAsync("skills")).Select(rv => rv.ToString());
