@@ -4,7 +4,17 @@ This repository contains projects related to my personal goal of learning more a
 
 ## RedisTests
 
-C# project containing tests to demonstrate the functionality of Redis offered by the StackExchange.Redis project.
+C# project containing tests to demonstrate the areas of functionality of Redis offered by the StackExchange.Redis project.
+
+## CallCenter
+
+A sample application showing how the capabilities of Redis (beyond simple caching) can be leveraged to solve a realistic problem.
+This code demonstrates how a call center management system that leverages Redis could be built.
+Tests demonstrate basic scenarios.
+
+## Notes
+
+All tests are run against a real Redis instance running in a container, which is created and destroyed with aid from TestContainers.
 
 
 ## Observations
